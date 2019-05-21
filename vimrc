@@ -6,10 +6,12 @@ filetype off                  " required
 set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 
-
 Plugin 'VundleVim/Vundle.vim'
 
+"install vim with python support
+"run install.py in install path
 Plugin 'Valloric/YouCompleteMe'
+
 Plugin 'mbbill/undotree'
 "Plugin 'scrooloose/nerdtree' "nerdtree can somewhat be replaced by :h netrw
 "Plugin 'vim-airline/vim-airline' "can be replaced by customized :h statusline
@@ -25,11 +27,13 @@ filetype plugin indent on
 set listchars=tab:>-,trail:-
 set t_Co=256
 
-"hithtlight the cursorline 
+"hightlight the cursorline 
 set cursorline
 hi CursorLine cterm=none ctermbg=DarkMagenta ctermfg=254
 "set nocursorcolumn
 set incsearch
+set hlsearch
+"set ignorecast
 "highlight Search ctermbg=gray ctermfg=NONE "------need to change color
 
 set relativenumber
@@ -37,4 +41,3 @@ set number
 
 
 "set autoindent/smartindent/cindent
-
