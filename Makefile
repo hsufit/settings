@@ -1,4 +1,4 @@
-all: vimrc gitGlobalconfig
+all: vimrc gitGlobalconfig inputrc
 
 vimrc: ~/.vimrc
 	cp ~/.vimrc ./vimrc
@@ -6,7 +6,7 @@ vimrc: ~/.vimrc
 gitGlobalconfig: ~/.gitconfig
 	cp ~/.gitconfig ./gitconfig
 
-
-
+inputrc: ~/.inputrc
+	cp ~/.inputrc ./inputrc
 
 
