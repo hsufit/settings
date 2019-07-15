@@ -31,6 +31,7 @@ let g:ycm_global_ycm_extra_conf='~/.vim/bundle/YouCompleteMe/third_party/ycmd/.y
 set listchars=tab:>-,trail:-
 set t_Co=256
 
+set backspace=indent,eol,start
 
 
 "hightlight the cursorline 
