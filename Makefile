@@ -1,12 +1,19 @@
-all: vimrc gitGlobalconfig inputrc
 
-vimrc: ~/.vimrc
-	cp ~/.vimrc ./vimrc
+USERSETTINGSAVEPATH = ./userSettings/
 
-gitGlobalconfig: ~/.gitconfig
-	cp ~/.gitconfig ./gitconfig
+USERSETTINGS = vimrc gitconfig inputrc
 
-inputrc: ~/.inputrc
-	cp ~/.inputrc ./inputrc
+#add to avoid file in same name
+.PHONY: $(USERSETTINGS)
+
+all: $(USERSETTINGS)
+
+#TODO: find how to use prerequest
+#$@ means target
+#$< means first prerequest
+$(USERSETTINGS): $(USERSETTINGS:%=~/.%)
+	cp ~/.$@ $(USERSETTINGSAVEPATH)$@
+
+
 
 
