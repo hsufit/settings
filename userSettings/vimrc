@@ -1,13 +1,47 @@
 "we can use vim-plug to replace Vundle!!
-set nocompatible              " be iMproved, required
+"set nocompatible              " be iMproved, required
+"filetype off                  " required
+
+" Vundle setting
+let iCanHazVundle=1
+let vundle_readme=expand('~/.vim/bundle/vundle/README.md')
+if !filereadable(vundle_readme)
+  echo "Installing Vundle.."
+  echo ""
+  silent !mkdir -p ~/.vim/bundle
+  silent !git clone https://github.com/gmarik/vundle ~/.vim/bundle/vundle
+  let iCanHazVundle=0
+endif
 filetype off                  " required
 
 " set the runtime path to include Vundle and initialize
-"set rtp+=~/.vim/bundle/Vundle.vim
-"call vundle#begin()
+set rtp+=~/.vim/bundle/vundle/
+call vundle#rc()
 
-"Plugin 'VundleVim/Vundle.vim'
+" ========== Plugin Setting ==========
+Plugin 'lifepillar/vim-solarized8.git'
+colorscheme solarized8_flat
 
+Plugin 'itchyny/lightline.vim'
+let g:lightline = {
+      \ 'colorscheme': 'PaperColor',
+      \ 'active': {
+      \   'left': [ [ 'mode', 'paste' ], [ 'readonly', 'modified', 'filename' ] ],
+      \ },
+      \ 'mode_map': {
+        \ 'n' : 'N',
+        \ 'i' : 'I',
+        \ 'R' : 'R',
+        \ 'v' : 'V',
+        \ 'V' : 'VL',
+        \ "\<C-v>": 'VB',
+        \ 'c' : 'C',
+        \ 's' : 'S',
+        \ 'S' : 'SL',
+        \ "\<C-s>": 'SB',
+        \ 't': 'T',
+        \ },
+      \ }
 "Plugin 'mbbill/undotree'
 "Plugin 'scrooloose/nerdtree' "nerdtree can somewhat be replaced by :h netrw
 "Plugin 'vim-airline/vim-airline' "can be replaced by customized :h statusline
@@ -17,11 +51,14 @@ filetype off                  " required
 "Plugin 'mileszs/ack.vim'  "replace ack.vim by setting :h grepprg
 "Plugin 'scrooloose/nerdcommenter'  "multi line comment tool
 "Plugin 'SirVer/ultisnips'  "snippet driver, we can use vim-snippets with it.
-"call vundle#end()
-"filetype plugin indent on
+
+filetype plugin indent on
+" ========== Plugin Setting End ==========
 
 set listchars=tab:>-,trail:-
 set t_Co=256
+set background=dark
+set guifont=monospace\ 12
 
 set backspace=indent,eol,start
 
@@ -38,5 +75,13 @@ set hlsearch
 set relativenumber
 set number
 
+"Tab relative bindings
+map L <ESC>:tabnext<CR>
+map H <ESC>:tabprev<CR>
+map <C-t>n <ESC>:Texplore <bar><CR>
+nmap dir  <ESC>:Explore<CR>
+nmap sdir <ESC>:Sexplore<CR>
+nmap vdir <ESC>:Vexplore<CR>
+nmap <leader>T  <ESC>:tabnew<CR>:Explore<CR>
 
 "set autoindent/smartindent/cindent
