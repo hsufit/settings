@@ -1,7 +1,7 @@
 
 USERSETTINGSAVEPATH = ./userSettings/
 
-USERSETTINGS = vimrc gitconfig inputrc tigrc
+USERSETTINGS = vimrc gitconfig inputrc tigrc tmux.conf
 TARGET = $(USERSETTINGS:%=~/.%)
 
 #add to avoid file in same name
