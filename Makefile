@@ -12,8 +12,8 @@ all: $(TARGET)
 
 #$@ means target
 #$< means first prerequest
-$(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(subst .,, $(notdir $@)))
-	@TMP_PATH=$(realpath $(addprefix $(USERSETTINGSAVEPATH)/, $(subst .,, $(notdir $@)))); \
+$(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
+	@TMP_PATH=$(realpath $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))); \
 	if [ -e $@ ]; then \
 		echo "$@ already exists, skipping..."; \
 	else \
