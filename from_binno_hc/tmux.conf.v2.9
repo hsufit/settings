@@ -1,0 +1,105 @@
+# Make it use C-a, similar to screen..
+unbind C-b
+unbind l
+set -g prefix C-a
+
+bind -n M-,  previous-window
+bind -n M-.  next-window
+
+# reload config without killing server
+bind R source-file ~/.tmux.conf \; display-message "Config reloaded..."
+
+# disable auto renaming
+setw -g automatic-rename off
+
+# I personally rebind the keys so “|” splits the current window vertically, and
+# “-” splits it horizontally. Not the easiest things to type, though easy to
+# remember.
+unbind %
+bind | split-window -h
+bind - split-window -v
+
+# Pane movement
+bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R
+
+# Pane resizing
+bind -r Left  resize-pane -L 2
+bind -r Down  resize-pane -D 2
+bind -r Up    resize-pane -U 2
+bind -r Right resize-pane -R 2
+
+#kill session
+bind K confirm kill-session
+
+# renumber windows sequentially after closing any of them
+set -g renumber-windows on
+
+# fixes the delay problem
+set -sg escape-time 0
+
+set-option -g history-limit 5000
+
+## make mouse happy in tmux
+## source: https://github.com/tmux/tmux/issues/145
+set -g terminal-overrides "xterm*:colors=256"
+set-option -g -q mouse on
+
+setw -g mode-keys vi
+
+######################
+### DESIGN CHANGES ###
+######################
+
+## Status bar design
+# loud or quiet?
+set-option -g visual-activity on 
+set-option -g visual-bell off
+set-option -g visual-silence off
+set-window-option -g monitor-activity on
+set-option -g bell-action none
+
+set -g default-terminal screen-256color
+
+# The modes {
+setw -g clock-mode-colour colour135
+setw -g mode-style bold,fg=colour196,bg=colour238
+
+# }
+# The panes {
+
+set -g pane-border-style fg=colour238,bg=colour235
+set -g pane-active-border-style fg=colour51,bg=colour236
+
+# }
+# The statusbar {
+
+set -g status-position bottom
+set -g status-style dim,fg=colour137,bg=colour235
+set -g status-left ''
+set -g status-right ' #[fg=colour3,bg=colour25,bold] %Y-%m-%d #[fg=colour3,bg=colour25,bold] %H:%M '
+set -g status-right-length 50
+set -g status-left-length 20
+
+setw -g window-status-current-style bold,fg=colour81,bg=colour235
+setw -g window-status-current-format '#[fg=colour220, bg=colour25, bold]#I:#[fg=colour2, bg=colour25, bold]#W'
+
+setw -g window-status-style none,fg=colour138,bg=colour235
+setw -g window-status-format ' #[fg=colour255]#I #[fg=colour1]#W'
+
+setw -g window-status-bell-style bold,fg=colour255,bg=colour1
+
+# }
+# The messages {
+
+set -g message-style bold,fg=colour232,bg=colour166
+set -g message-command-style fg=blue,bg=black
+
+# }
+
+run-shell ~/tmux-resurrect/resurrect.tmux
+set -g @resurrect-save-shell-history 'on'
+set -g @resurrect-strategy-vim 'session'
+set -g @resurrect-strategy-nvim 'session'

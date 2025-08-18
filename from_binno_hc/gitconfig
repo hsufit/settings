@@ -1,0 +1,128 @@
+[push]
+    default = current
+[user]
+	name = tim.hsu
+	email = tim.hsu@sifive.com
+
+[color]
+    diff = auto
+    status = auto
+    branch = auto
+    
+[core]
+    editor = vim
+    pager = less -FXRS
+
+[alias]
+	addi = add -i
+	rmc = rm --cached
+
+    co = checkout
+    cos = checkout --track git-svn -b
+    cob = checkout -b
+    cod = checkout --
+
+    ci = commit -a
+    cia = commit --amend
+
+    di = diff
+    st = status
+	stm = status -uno
+
+    br = branch
+    bra = branch -a
+    brd = branch -D
+    brm = branch -m
+
+    re = remote
+
+    l = log --graph --all --decorate --oneline -n 10
+    #lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+    lg1 = !"git lg1-specific --all"
+    lg2 = !"git lg2-specific --all"
+    lg3 = !"git lg3-specific --all"
+    lg1-specific = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)'
+    lg2-specific = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n''          %C(white)%s%C(reset) %C(dim white)- %an%C(reset)'
+    lg3-specific = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset) %C(bold cyan)(committed: %cD)%C(reset) %C(bold yellow)%d%C(reset)%n''          %C(white)%s%C(reset)%n''          %C(dim white)- %an <%ae> %C(reset) %C(dim white)(committer: %cn <%ce>)%C(reset)'
+
+    lg = log --pretty="%C(yellow)%h|%C(red)%ad|%C(green)%an:%C(reset)%s" --date=short --abbrev-commit -10
+    lga = log --pretty="%C(yellow)%h|%C(red)%ad|%C(green)%an:%C(reset)%s" --date=short --abbrev-commit
+    lgp = log -p 
+	lgs = log --stat -1
+    lgu = lg --author
+
+    bl = blame
+    so = show
+    bs = bisect
+
+    rsh = reset --hard
+    rss = reset --soft
+	rs = reset HEAD
+
+    #git arc --prefix=[dir name] HEAD |gzip > [name].tar.gz
+    arc = archive --format=tar
+    rb = rebase -i
+
+    fp= format-patch
+    ap= apply --reject
+    gp= grep -n
+    cp= cherry-pick
+	mg= merge
+	d = difftool
+
+    bname = !"git rev-parse --abbrev-ref HEAD"
+    in  = !"git log $(git bname)..origin/HEAD"
+    out = !"git log origin/HEAD..$(git bname)"
+
+    rp = remote prune origin
+
+#delete dangling list completely
+#git reflog expire --expire-unreachable=0 --all
+#git gc --prune=0
+
+#[github=import]
+#    remote = origin
+    filechange = "!__git_file_change() { git diff --name-status \"$1^\" \"$1\"; }; __git_file_change"
+    meld = difftool
+
+[mrege]
+    tool = kdiff3
+    conflictstyle = diff3 # Three file comparision (Base = Common Ancestor, Local = Current Branch, Remote = Merge in Branch)
+#    spull = svn rebase
+#    spush = svn dcommit
+#    sfetch = svn fetch
+#    cdf = diff-- cached
+#    ll = log-- graph-- decorate-- pretty = online-- abbrev - commit
+#    lla = log-- graph-- decorate-- pretty = online-- abbrev - commit-- all
+#    ls = ls - files
+#    pick = add - p
+#    go = rebase-- continue
+#    skip = rebase-- skip
+#    tip = log - 1
+#    wdf = diff-- color - words
+#    wcdf = diff-- color - words-- cached
+#    wshow = show-- color - words amend = commit - s-- amend
+[diff]
+    tool = vimdiff
+
+[difftool]
+    prompt = false
+
+[difftool "meld"]
+    cmd = meld "$LOCAL" "$REMOTE"
+
+[merge]
+#   tool = kdiff3
+#   conflictstyle = diff3 # Three file comparision (Base = Common Ancestor, Local = Current Branch, Remote = Merge in Branch)
+    tool = vimdiff
+
+[mergetool]
+    prompt = false
+
+[clean]
+    requireForce = false
+
+[tig "bind"]
+    generic = D !git difftool --tool=vimdiff --no-prompt %(commit)^ %(commit)
+[http]
+	sslVerify = true
