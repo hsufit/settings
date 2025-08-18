@@ -1,7 +1,7 @@
 
 USERSETTINGSAVEPATH = ./userSettings/
 
-USERSETTINGS = vimrc gitconfig inputrc
+USERSETTINGS = vimrc gitconfig inputrc tigrc
 TARGET = $(USERSETTINGS:%=~/.%)
 
 #add to avoid file in same name
