@@ -1,2 +1,5 @@
 #set completion ignore case
 set completion-ignore-case On
+#enable history search for C-p and C-n to rerun command easily, which effects all readline functions
+bind '"\C-p":history-search-backward'
+bind '"\C-n":history-search-forward'
