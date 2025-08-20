@@ -1,7 +1,7 @@
 
 USERSETTINGSAVEPATH = ./userSettings/
 
-USERSETTINGS = vimrc gitconfig inputrc tigrc tmux.conf
+USERSETTINGS = vimrc gitconfig inputrc tigrc tmux.conf bash_aliases
 TARGET = $(USERSETTINGS:%=~/.%)
 
 GIT_PROMPT = $(realpath ./otherSourceFiles/git/git-prompt)
