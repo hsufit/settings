@@ -1,0 +1,27 @@
+# In git versions < 1.7.12, this shell library was part of the
+# git completion script.
+#
+# Some users rely on the __git_ps1 function becoming available
+# when bash-completion is loaded.  Continue to load this library
+# at bash-completion startup for now, to ease the transition to a
+# world order where the prompt function is requested separately.
+#
+
+# This is not the original version
+# Clean up the if case and point to the nearby git-prompt file
+source ./git-sh-prompt
+
+# Add following lines to enable the git prompt and color prompt settings
+# If not running interactively, don't do anything
+[ -z "$PS1" ] && return
+blue="\[\033[1;34m\]"
+green="\[\033[1;32m\]"
+yellow="\[\033[1;33m\]"
+red="\[\033[1;31m\]"
+cyan="\[\033[1;36m\]"
+white="\[\033[1;37m\]"
+Magenta="\[\033[1;35m\]"
+no="\[\033[0m\]"
+gitps1='$(__git_ps1 "<%s>")'
+PS1="$green\d \@ $blue[\w]\n$cyan\u@$red\h$white:$yellow[\W]$red$gitps1$blue\$ $no"
+
