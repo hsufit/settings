@@ -8,12 +8,15 @@ GIT_PROMPT = $(realpath ./otherSourceFiles/git/git-prompt)
 MARKER := \#git-prompt_marker
 BASHRC = ~/.bashrc
 
+TPM_PATH := $(HOME)/.tmux/plugins/tpm
+
 #add to avoid file in same name
 .PHONY: $(USERSETTINGS)
 .PHONY: $(TARGET)
 .PHONY: ~/.bashrc cleanbash
+.PHONY: ~/.tmux
 
-all: $(TARGET) ~/.bashrc
+all: $(TARGET) ~/.bashrc ~/.tmux
 
 #$@ means target
 #$< means first prerequest
@@ -36,7 +39,24 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		echo "Git prompt already installed."; \
 	fi
 
-clean: cleanbash
+tpm: ~/.tmux.conf
+	@if [ ! -d "$(TPM_PATH)" ]; then \
+		echo "Cloning TPM..."; \
+		git clone https://github.com/tmux-plugins/tpm $(TPM_PATH); \
+	else \
+		echo "TPM already installed."; \
+	fi
+
+tpmPlugins: tpm
+	[ -f ~/.tmux.conf ] && tmux source ~/.tmux.conf
+	@echo "Installing tmux plugins..."
+	$(TPM_PATH)/bin/install_plugins
+	@echo "Updating tmux plugins..."
+	$(TPM_PATH)/bin/update_plugins all
+
+~/.tmux: tpmPlugins
+
+clean: cleanbash cleantmuxPlugin
 	@for f in $(TARGET); do \
 		if [ -L "$$f" ]; then \
 			echo "remove softlink file $$f"; \
@@ -50,3 +70,8 @@ cleanbash:
 	@echo "Removing Git prompt..."
 	@sed -i "/$(MARKER)/,+1d" $(BASHRC)
 	@echo "Git prompt removed."
+
+cleantmuxPlugin:
+	@echo "Removing tmux plugins..."
+	@rm -rf ~/.tmux/plugins
+	@echo "Tmux plugins removed."
