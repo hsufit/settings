@@ -1,5 +1,42 @@
 #!/bin/bash
 
+# Disable the connection to x-server to reduce computing power usage
 alias vim='vim -X -p'
 alias vi='vim -X -p'
 alias vimdiff='vimdiff -X'
+alias vimdiff='vimdiff -X'
+
+# Let make process run in higher priority
+alias make="nice make"
+
+# Run grep with skip binary files, show lines, and case insensitive
+alias grep='grep --color -I -n -i'
+# Run grep with regular expression and skip tags files
+alias rgrep='grep -R --exclude="tags"'
+
+# Run cp with copying folders and force
+alias cp='cp -rf'
+# Run rsync with copying folders and show progress
+alias rsync='rsync -r --progress'
+
+# Run python with tab/space mix check
+alias python='python -t'
+alias python3='python3 -t'
+
+# Run tmux with 256 colors
+alias tmux='tmux -2'
+
+# Deinit git submodules
+alias deinit='(module load git/git/2.30.0 && git submodule deinit --all -f)'
+# Clean the broken git references
+alias git_clean_ref='git for-each-ref --format="%(refname)" | while read ref; do git show-ref --quiet --verify $ref 2>/dev/null || git update-ref -d $ref; done'
+
+# Unused commands, keep them if needed for future
+#alias whereis="type"
+#alias cscope='cscope -Rbqk'
+#alias cflow='cflow -T'
+# Code formatter for the c files
+#alias indent='indent -gnu -bli0 -i4 -cli4 -nut -nip -npsl -nhnl'
+#alias astyle="astyle -S --style=allman"
+#alias ipython="ipython --colors=\"Linux\""
+#alias passwd="yppasswd"
