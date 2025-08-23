@@ -62,7 +62,12 @@ set guifont=monospace\ 12
 
 set backspace=indent,eol,start
 
-
+" Insert mode → vertical bar
+let &t_SI = "\e[6 q"
+" Normal mode → block
+let &t_EI = "\e[2 q"
+" Replace mode → block
+let &t_SR = "\e[2 q"
 "hightlight the cursorline 
 set cursorline
 hi CursorLine cterm=none ctermbg=DarkMagenta ctermfg=254
