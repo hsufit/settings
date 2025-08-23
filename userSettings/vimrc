@@ -62,6 +62,9 @@ set guifont=monospace\ 12
 
 set backspace=indent,eol,start
 
+" Show uncompleted command in the status line
+set showcmd
+
 " Insert mode → vertical bar
 let &t_SI = "\e[6 q"
 " Normal mode → block
