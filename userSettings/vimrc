@@ -56,7 +56,12 @@ filetype plugin indent on
 " ========== Plugin Setting End ==========
 
 set listchars=tab:>-,trail:-
-set t_Co=256
+" Use true color if supported, otherwise fall back to 256 colors
+if exists('+termguicolors') && (has('nvim') || &term =~ 'xterm\|screen\|tmux')
+  set termguicolors
+else
+  set t_Co=256
+endif
 set background=dark
 set guifont=monospace\ 12
 
