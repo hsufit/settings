@@ -9,7 +9,12 @@
 
 # This is not the original version
 # Clean up the if case and point to the nearby git-prompt file
-source ./git-sh-prompt
+if [ -f ./git-sh-prompt ]; then
+  echo "relative path"
+  source ./git-sh-prompt
+elif [ -f $HOME/settings/otherSourceFiles/git/git-sh-prompt ]; then
+  source $HOME/settings/otherSourceFiles/git/git-sh-prompt
+fi
 
 # Add following lines to enable the git prompt and color prompt settings
 # If not running interactively, don't do anything
