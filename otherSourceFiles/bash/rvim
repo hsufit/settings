@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# rvim records a Vim key log for later behavior review.
+# It is opt-in and does not replace the normal vim command.
+
+if [ -n "${BASH_VERSION:-}" ] && [ -z "${RVIM_LOADED:-}" ]; then
+  export RVIM_LOADED=1
+
+  __rvim_sanitize() {
+    local value="$1"
+    value="${value//[^A-Za-z0-9._-]/_}"
+    printf '%s' "${value:-unknown}"
+  }
+
+  rvim() {
+    local log_dir started_at host session session_id window_index window_name window_id pane_index pane_id
+    local safe_host safe_session_id safe_window_id safe_pane_id base key_log meta_log
+
+    log_dir="$HOME/.vim-activity/rvim"
+    mkdir -p "$log_dir"
+
+    started_at="$(date '+%Y%m%d-%H%M%S')"
+    host="${HOSTNAME:-$(hostname 2>/dev/null)}"
+
+    if [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ]; then
+      session="$(tmux display-message -p '#S' 2>/dev/null)"
+      session_id="$(tmux display-message -p '#{session_id}' 2>/dev/null)"
+      window_index="$(tmux display-message -p '#I' 2>/dev/null)"
+      window_name="$(tmux display-message -p '#W' 2>/dev/null)"
+      window_id="$(tmux display-message -p '#{window_id}' 2>/dev/null)"
+      pane_index="$(tmux display-message -p '#P' 2>/dev/null)"
+      pane_id="$(tmux display-message -p '#D' 2>/dev/null)"
+    else
+      session="no-tmux"
+      session_id="no-tmux"
+      window_index="no-tmux"
+      window_name="no-tmux"
+      window_id="no-tmux"
+      pane_index="no-tmux"
+      pane_id="no-tmux"
+    fi
+
+    safe_host="$(__rvim_sanitize "$host")"
+    safe_session_id="$(__rvim_sanitize "$session_id")"
+    safe_window_id="$(__rvim_sanitize "$window_id")"
+    safe_pane_id="$(__rvim_sanitize "$pane_id")"
+
+    base="${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${started_at}"
+    key_log="$log_dir/${base}.keys"
+    meta_log="$log_dir/${base}.meta.tsv"
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$(date '+%F %T')" \
+      "$host" \
+      "$session" \
+      "$session_id" \
+      "$window_index" \
+      "$window_name" \
+      "$window_id" \
+      "$pane_index" \
+      "$pane_id" \
+      "$$" \
+      "$PWD" \
+      "vim -w $key_log $*" > "$meta_log"
+
+    command vim -w "$key_log" "$@"
+  }
+fi
