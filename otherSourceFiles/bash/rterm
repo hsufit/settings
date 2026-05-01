@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+
+# rterm records a terminal command transcript for later review.
+# Usage: rterm qemu-system-x86_64 -nographic ...
+
+if [ -n "${BASH_VERSION:-}" ] && [ -z "${RTERM_LOADED:-}" ]; then
+  export RTERM_LOADED=1
+
+  __rterm_sanitize() {
+    local value="$1"
+    value="${value//[^A-Za-z0-9._-]/_}"
+    printf '%s' "${value:-unknown}"
+  }
+
+  rterm() {
+    if [ "$#" -eq 0 ]; then
+      echo "Usage: rterm <command> [args...]" >&2
+      return 2
+    fi
+
+    if ! command -v script >/dev/null 2>&1; then
+      echo "rterm: script command not found" >&2
+      return 127
+    fi
+
+    local log_dir started_at host session session_id window_index window_name window_id pane_index pane_id
+    local safe_host safe_session_id safe_window_id safe_pane_id base transcript_log timing_log meta_log quoted_cmd
+
+    log_dir="$HOME/.terminal-activity/rterm"
+    mkdir -p "$log_dir"
+
+    started_at="$(date '+%Y%m%d-%H%M%S')"
+    host="${HOSTNAME:-$(hostname 2>/dev/null)}"
+
+    if [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ]; then
+      session="$(tmux display-message -p '#S' 2>/dev/null)"
+      session_id="$(tmux display-message -p '#{session_id}' 2>/dev/null)"
+      window_index="$(tmux display-message -p '#I' 2>/dev/null)"
+      window_name="$(tmux display-message -p '#W' 2>/dev/null)"
+      window_id="$(tmux display-message -p '#{window_id}' 2>/dev/null)"
+      pane_index="$(tmux display-message -p '#P' 2>/dev/null)"
+      pane_id="$(tmux display-message -p '#D' 2>/dev/null)"
+    else
+      session="no-tmux"
+      session_id="no-tmux"
+      window_index="no-tmux"
+      window_name="no-tmux"
+      window_id="no-tmux"
+      pane_index="no-tmux"
+      pane_id="no-tmux"
+    fi
+
+    safe_host="$(__rterm_sanitize "$host")"
+    safe_session_id="$(__rterm_sanitize "$session_id")"
+    safe_window_id="$(__rterm_sanitize "$window_id")"
+    safe_pane_id="$(__rterm_sanitize "$pane_id")"
+
+    base="${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${started_at}"
+    transcript_log="$log_dir/${base}.typescript"
+    timing_log="$log_dir/${base}.timing"
+    meta_log="$log_dir/${base}.meta.tsv"
+
+    printf -v quoted_cmd '%q ' "$@"
+    quoted_cmd="${quoted_cmd% }"
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$(date '+%F %T')" \
+      "$host" \
+      "$session" \
+      "$session_id" \
+      "$window_index" \
+      "$window_name" \
+      "$window_id" \
+      "$pane_index" \
+      "$pane_id" \
+      "$$" \
+      "$PWD" \
+      "$transcript_log" \
+      "$timing_log" \
+      "$quoted_cmd" > "$meta_log"
+
+    echo "rterm recording: $transcript_log" >&2
+    script -f --timing="$timing_log" -c "$quoted_cmd" "$transcript_log"
+  }
+fi
