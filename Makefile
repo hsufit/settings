@@ -14,7 +14,7 @@ TPM_PATH := $(HOME)/.tmux/plugins/tpm
 .PHONY: $(USERSETTINGS)
 .PHONY: $(TARGET)
 .PHONY: ~/.bashrc cleanbash
-.PHONY: ~/.tmux
+.PHONY: ~/.tmux tpm tpmPlugins
 
 all: $(TARGET) ~/.bashrc ~/.tmux
 
