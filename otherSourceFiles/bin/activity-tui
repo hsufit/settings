@@ -170,6 +170,9 @@ class ActivityTui:
         self.query = ""
         self.search_mode = "wildcard"
         self.search_error = ""
+        self.filter_query = ""
+        self.filter_error = ""
+        self.visible_command_indexes: list[int] = []
         self.matches: list[int] = []
         self.match_set: set[int] = set()
         self.mode = "time"
@@ -201,7 +204,23 @@ class ActivityTui:
         self.offset = min(self.offset, self.selected)
 
     def refresh_view(self) -> None:
+        self.update_visible_command_indexes()
         self.update_matches()
+
+    def update_visible_command_indexes(self) -> None:
+        self.filter_error = ""
+        if not self.filter_query:
+            self.visible_command_indexes = list(range(len(self.commands)))
+            return
+        self.visible_command_indexes = []
+        try:
+            for index, item in enumerate(self.commands):
+                row = self.command_row(item, index)
+                if row_matches_query(row.text, self.filter_query, "regex"):
+                    self.visible_command_indexes.append(index)
+        except re.error as exc:
+            self.filter_error = f"invalid filter regex: {exc}"
+            self.visible_command_indexes = list(range(len(self.commands)))
 
     def command_row(self, item: CommandEntry, command_index: int, indent: str = "") -> ListRow:
         marker = activity_label(item.activity_id)
@@ -220,12 +239,13 @@ class ActivityTui:
         if self.mode == "tree":
             self.rows = self.build_tree_rows()
         else:
-            self.rows = [self.command_row(item, index) for index, item in enumerate(self.commands)]
+            self.rows = [self.command_row(self.commands[index], index) for index in self.visible_command_indexes]
 
     def build_tree_rows(self) -> list[ListRow]:
         rows: list[ListRow] = []
         sessions: dict[tuple[str, str], dict[tuple[str, str, str], dict[tuple[str, str], dict[tuple[str, str], list[int]]]]] = {}
-        for index, item in enumerate(self.commands):
+        for index in self.visible_command_indexes:
+            item = self.commands[index]
             session_key = (item.session, item.session_id)
             window_key = (item.window_index, item.window_name, item.window_id)
             pane_key = (item.pane_index, item.pane_id)
@@ -320,6 +340,7 @@ class ActivityTui:
                 self.next_match(-1)
             elif key == ord("c"):
                 self.query = ""
+                self.filter_query = ""
                 self.refresh_view()
             elif key == ord("R"):
                 self.commands = load_commands()
@@ -387,15 +408,16 @@ class ActivityTui:
         self.stdscr.erase()
         height, width = self.stdscr.getmaxyx()
         match_text = f"{len(self.matches)} matches" if self.query else "no search"
+        filter_text = f"filter={self.filter_query!r} visible={len(self.visible_command_indexes)}" if self.filter_query else "no filter"
         header = (
-            f"activity-tui  mode={self.mode}  search={self.search_mode}  {len(self.commands)} commands  {match_text}"
+            f"activity-tui  mode={self.mode}  search={self.search_mode}  {len(self.commands)} commands  {filter_text}  {match_text}"
             f"  query={self.query!r}"
         )
         self.stdscr.addnstr(0, 0, header, width - 1, curses.A_BOLD)
         self.stdscr.addnstr(
             1,
             0,
-            "j/k move  v view  / search  : cmd  n/N match  c clear  Enter/o open  m meta  t transcript  r replay  q quit",
+            "j/k move  v view  / search  :g regex  :f filter  n/N match  c clear  Enter/o open  m meta  t transcript  r replay  q quit",
             width - 1,
         )
 
@@ -452,6 +474,8 @@ class ActivityTui:
             details.append("recording=none")
         if self.message:
             details.append(f"message: {self.message}")
+        if self.filter_error:
+            details.append(f"filter_error={self.filter_error}")
 
         for row_offset, line in enumerate(details):
             if y + row_offset >= height:
@@ -519,12 +543,35 @@ class ActivityTui:
             self.query = pattern
             self.search_mode = "regex"
             self.apply_search_result()
+        elif command.startswith("f/"):
+            pattern = command[2:]
+            if pattern.endswith("/"):
+                pattern = pattern[:-1]
+            self.apply_filter(pattern)
         elif command.startswith("g "):
             self.query = command[2:].strip()
             self.search_mode = "regex"
             self.apply_search_result()
+        elif command.startswith("f "):
+            self.apply_filter(command[2:].strip())
         else:
             self.message = f"unsupported command: {command}"
+
+    def apply_filter(self, pattern: str) -> None:
+        self.filter_query = pattern
+        current_index = self.selected_command_index()
+        self.refresh_view()
+        if self.filter_error:
+            self.filter_query = ""
+            self.refresh_view()
+            self.message = self.filter_error
+            return
+        if current_index is not None and current_index in self.visible_command_indexes:
+            self.select_command_index(current_index)
+        else:
+            self.selected = 0
+        self.ensure_selected_visible()
+        self.message = f"{len(self.visible_command_indexes)} commands after filter"
 
     def apply_search_result(self) -> None:
         self.refresh_view()
