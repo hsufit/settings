@@ -7,6 +7,7 @@ import curses
 import csv
 import fnmatch
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -151,7 +152,9 @@ def activity_label(activity_id: str) -> str:
     return activity_id.rsplit("-", 1)[-1] or activity_id
 
 
-def row_matches_query(text: str, query: str) -> bool:
+def row_matches_query(text: str, query: str, mode: str) -> bool:
+    if mode == "regex":
+        return re.search(query, text, re.IGNORECASE) is not None
     text = text.lower()
     query = query.lower()
     if "*" in query:
@@ -165,10 +168,14 @@ class ActivityTui:
         self.commands = load_commands()
         self.recordings = load_recordings()
         self.query = ""
+        self.search_mode = "wildcard"
+        self.search_error = ""
         self.matches: list[int] = []
         self.match_set: set[int] = set()
         self.mode = "time"
         self.rows: list[ListRow] = []
+        self.search_history: list[str] = []
+        self.command_history: list[str] = []
         self.selected = 0
         self.offset = 0
         self.message = ""
@@ -176,12 +183,19 @@ class ActivityTui:
 
     def update_matches(self) -> None:
         self.rebuild_rows()
+        self.search_error = ""
         if not self.query:
             self.matches = []
         else:
-            self.matches = [
-                index for index, row in enumerate(self.rows) if row_matches_query(row.text, self.query)
-            ]
+            try:
+                self.matches = [
+                    index
+                    for index, row in enumerate(self.rows)
+                    if row_matches_query(row.text, self.query, self.search_mode)
+                ]
+            except re.error as exc:
+                self.matches = []
+                self.search_error = f"invalid regex: {exc}"
         self.match_set = set(self.matches)
         self.selected = min(self.selected, max(len(self.rows) - 1, 0))
         self.offset = min(self.offset, self.selected)
@@ -298,6 +312,8 @@ class ActivityTui:
                 self.replay_recording()
             elif key == ord("/"):
                 self.prompt_search()
+            elif key == ord(":"):
+                self.prompt_command()
             elif key == ord("n"):
                 self.next_match(1)
             elif key == ord("N"):
@@ -372,14 +388,14 @@ class ActivityTui:
         height, width = self.stdscr.getmaxyx()
         match_text = f"{len(self.matches)} matches" if self.query else "no search"
         header = (
-            f"activity-tui  mode={self.mode}  {len(self.commands)} commands  {match_text}"
+            f"activity-tui  mode={self.mode}  search={self.search_mode}  {len(self.commands)} commands  {match_text}"
             f"  query={self.query!r}"
         )
         self.stdscr.addnstr(0, 0, header, width - 1, curses.A_BOLD)
         self.stdscr.addnstr(
             1,
             0,
-            "j/k move  v view  / search  n/N match  c clear  Enter/o open  m meta  t transcript  r replay  R reload  q quit",
+            "j/k move  v view  / search  : cmd  n/N match  c clear  Enter/o open  m meta  t transcript  r replay  q quit",
             width - 1,
         )
 
@@ -443,25 +459,83 @@ class ActivityTui:
             attr = curses.A_BOLD if row_offset == 0 else curses.A_NORMAL
             self.stdscr.addnstr(y + row_offset, 0, display_width(line, width - 1), width - 1, attr)
 
-    def prompt_search(self) -> None:
+    def prompt_line(self, prefix: str, history: list[str]) -> str | None:
         height, width = self.stdscr.getmaxyx()
         curses.curs_set(1)
-        self.stdscr.addnstr(height - 1, 0, "/" + " " * (width - 2), width - 1)
-        self.stdscr.move(height - 1, 1)
-        curses.echo()
+        current = ""
+        history_index = len(history)
+
+        def draw_prompt() -> None:
+            self.stdscr.addnstr(height - 1, 0, prefix + " " * (width - 1 - len(prefix)), width - 1)
+            self.stdscr.addnstr(height - 1, len(prefix), current, width - 1 - len(prefix))
+            self.stdscr.move(height - 1, min(width - 1, len(prefix) + len(current)))
+            self.stdscr.refresh()
+
         try:
-            raw = self.stdscr.getstr(height - 1, 1, width - 2)
-            self.query = raw.decode("utf-8", errors="replace")
-            self.refresh_view()
-            if self.matches:
-                self.selected = self.matches[0]
-                self.ensure_selected_visible()
-                self.message = f"{len(self.matches)} matches"
-            else:
-                self.message = "no matches"
+            draw_prompt()
+            while True:
+                key = self.stdscr.getch()
+                if key in (10, 13, curses.KEY_ENTER):
+                    break
+                if key == 27:
+                    return None
+                if key in (curses.KEY_BACKSPACE, 127, 8):
+                    current = current[:-1]
+                elif key == curses.KEY_UP:
+                    if history:
+                        history_index = max(0, history_index - 1)
+                        current = history[history_index]
+                elif key == curses.KEY_DOWN:
+                    if history:
+                        history_index = min(len(history), history_index + 1)
+                        current = history[history_index] if history_index < len(history) else ""
+                elif 32 <= key <= 126:
+                    current += chr(key)
+                draw_prompt()
+            return current
         finally:
-            curses.noecho()
             curses.curs_set(0)
+
+    def prompt_search(self) -> None:
+        query = self.prompt_line("/", self.search_history)
+        if query is None:
+            return
+        self.query = query
+        self.search_mode = "wildcard"
+        if self.query and (not self.search_history or self.search_history[-1] != self.query):
+            self.search_history.append(self.query)
+        self.apply_search_result()
+
+    def prompt_command(self) -> None:
+        command = self.prompt_line(":", self.command_history)
+        if command is None:
+            return
+        if command and (not self.command_history or self.command_history[-1] != command):
+            self.command_history.append(command)
+        if command.startswith("g/"):
+            pattern = command[2:]
+            if pattern.endswith("/"):
+                pattern = pattern[:-1]
+            self.query = pattern
+            self.search_mode = "regex"
+            self.apply_search_result()
+        elif command.startswith("g "):
+            self.query = command[2:].strip()
+            self.search_mode = "regex"
+            self.apply_search_result()
+        else:
+            self.message = f"unsupported command: {command}"
+
+    def apply_search_result(self) -> None:
+        self.refresh_view()
+        if self.search_error:
+            self.message = self.search_error
+        elif self.matches:
+            self.selected = self.matches[0]
+            self.ensure_selected_visible()
+            self.message = f"{len(self.matches)} matches"
+        else:
+            self.message = "no matches"
 
     def open_with_editor(self, paths: list[Path]) -> None:
         existing = [str(path) for path in paths if path and path.exists()]
