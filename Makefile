@@ -8,10 +8,12 @@ GIT_PROMPT = $(realpath ./otherSourceFiles/git/git-prompt)
 TMUX_COMMAND_LOG = $(realpath ./otherSourceFiles/bash/tmux-command-log)
 RVIM = $(realpath ./otherSourceFiles/bash/rvim)
 RTERM = $(realpath ./otherSourceFiles/bash/rterm)
+ACTIVITY_TOOLS = $(realpath ./otherSourceFiles/bash/activity-tools)
 MARKER := \#git-prompt_marker
 TMUX_COMMAND_LOG_MARKER := \#tmux-command-log_marker
 RVIM_MARKER := \#rvim_marker
 RTERM_MARKER := \#rterm_marker
+ACTIVITY_TOOLS_MARKER := \#activity-tools_marker
 BASHRC = ~/.bashrc
 
 TPM_PATH := $(HOME)/.tmux/plugins/tpm
@@ -36,7 +38,7 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		ln -s $$TMP_PATH $@; \
 	fi
 
-~/.bashrc: $(GIT_PROMPT) $(TMUX_COMMAND_LOG) $(RVIM) $(RTERM)
+~/.bashrc: $(GIT_PROMPT) $(TMUX_COMMAND_LOG) $(RVIM) $(RTERM) $(ACTIVITY_TOOLS)
 	@echo "Installing Git prompt..."
 	@if ! grep -q '$(MARKER)' $(BASHRC); then \
 		echo "$(MARKER)" >> $(BASHRC); \
@@ -68,6 +70,14 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		echo "rterm added to $(BASHRC)"; \
 	else \
 		echo "rterm already installed."; \
+	fi
+	@echo "Installing activity tools..."
+	@if ! grep -q '$(ACTIVITY_TOOLS_MARKER)' $(BASHRC); then \
+		echo "$(ACTIVITY_TOOLS_MARKER)" >> $(BASHRC); \
+		echo "if [ -f $(ACTIVITY_TOOLS) ]; then source $(ACTIVITY_TOOLS); fi" >> $(BASHRC); \
+		echo "activity tools added to $(BASHRC)"; \
+	else \
+		echo "activity tools already installed."; \
 	fi
 
 vimPluginHint:
@@ -119,6 +129,9 @@ cleanbash:
 	@echo "Removing rterm..."
 	@sed -i "/$(RTERM_MARKER)/,+1d" $(BASHRC)
 	@echo "rterm removed."
+	@echo "Removing activity tools..."
+	@sed -i "/$(ACTIVITY_TOOLS_MARKER)/,+1d" $(BASHRC)
+	@echo "activity tools removed."
 
 cleantmuxPlugin:
 	@echo "Removing tmux plugins..."

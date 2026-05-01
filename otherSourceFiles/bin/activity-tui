@@ -1,0 +1,520 @@
+#!/usr/bin/env python3
+"""Browse tmux command logs and open matching rvim/rterm recordings."""
+
+from __future__ import annotations
+
+import curses
+import csv
+import os
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable
+
+
+HOME = Path.home()
+COMMAND_LOG_DIR = HOME / ".bash_history.d" / "tmux-command-log"
+RVIM_DIR = HOME / ".vim-activity" / "rvim"
+RTERM_DIR = HOME / ".terminal-activity" / "rterm"
+
+
+@dataclass
+class CommandEntry:
+    timestamp: str
+    activity_id: str
+    session: str
+    session_id: str
+    window_index: str
+    window_name: str
+    window_id: str
+    pane_index: str
+    pane_id: str
+    bash_pid: str
+    pwd: str
+    command: str
+    source: Path
+
+
+@dataclass
+class Recording:
+    kind: str
+    activity_id: str
+    meta_path: Path
+    primary_path: Path | None
+    timing_path: Path | None
+    command: str
+
+
+@dataclass
+class ListRow:
+    kind: str
+    text: str
+    command_index: int | None = None
+    match: bool = False
+
+
+def read_tsv(path: Path) -> Iterable[list[str]]:
+    try:
+        with path.open(newline="", encoding="utf-8", errors="replace") as fh:
+            yield from csv.reader(fh, delimiter="\t")
+    except OSError:
+        return
+
+
+def load_commands() -> list[CommandEntry]:
+    entries: list[CommandEntry] = []
+    for path in sorted(COMMAND_LOG_DIR.glob("*.tsv")):
+        for row in read_tsv(path):
+            if len(row) < 12:
+                continue
+            entries.append(
+                CommandEntry(
+                    timestamp=row[0],
+                    activity_id=row[1],
+                    session=row[2],
+                    session_id=row[3],
+                    window_index=row[4],
+                    window_name=row[5],
+                    window_id=row[6],
+                    pane_index=row[7],
+                    pane_id=row[8],
+                    bash_pid=row[9],
+                    pwd=row[10],
+                    command=row[11],
+                    source=path,
+                )
+            )
+    entries.sort(key=lambda item: item.timestamp, reverse=True)
+    return entries
+
+
+def load_rvim_recording(path: Path) -> Recording | None:
+    rows = list(read_tsv(path))
+    if not rows or len(rows[0]) < 13:
+        return None
+    row = rows[0]
+    activity_id = row[1]
+    command = row[12]
+    key_path = path.with_name(path.name.removesuffix(".meta.tsv") + ".keys")
+    return Recording(
+        kind="rvim",
+        activity_id=activity_id,
+        meta_path=path,
+        primary_path=key_path,
+        timing_path=None,
+        command=command,
+    )
+
+
+def load_rterm_recording(path: Path) -> Recording | None:
+    rows = list(read_tsv(path))
+    if not rows or len(rows[0]) < 15:
+        return None
+    row = rows[0]
+    return Recording(
+        kind="rterm",
+        activity_id=row[1],
+        meta_path=path,
+        primary_path=Path(row[12]),
+        timing_path=Path(row[13]),
+        command=row[14],
+    )
+
+
+def load_recordings() -> dict[str, Recording]:
+    recordings: dict[str, Recording] = {}
+    for path in sorted(RVIM_DIR.glob("*.meta.tsv")):
+        recording = load_rvim_recording(path)
+        if recording:
+            recordings[recording.activity_id] = recording
+    for path in sorted(RTERM_DIR.glob("*.meta.tsv")):
+        recording = load_rterm_recording(path)
+        if recording:
+            recordings[recording.activity_id] = recording
+    return recordings
+
+
+def display_width(text: str, max_width: int) -> str:
+    text = text.replace("\t", " ")
+    if len(text) <= max_width:
+        return text
+    if max_width <= 1:
+        return text[:max_width]
+    return text[: max_width - 3] + "..."
+
+
+def activity_label(activity_id: str) -> str:
+    if not activity_id:
+        return "-"
+    return activity_id.rsplit("-", 1)[-1] or activity_id
+
+
+class ActivityTui:
+    def __init__(self, stdscr: curses.window) -> None:
+        self.stdscr = stdscr
+        self.commands = load_commands()
+        self.recordings = load_recordings()
+        self.query = ""
+        self.matches: list[int] = []
+        self.match_set: set[int] = set()
+        self.mode = "time"
+        self.rows: list[ListRow] = []
+        self.selected = 0
+        self.offset = 0
+        self.message = ""
+        self.refresh_view()
+
+    def update_matches(self) -> None:
+        self.rebuild_rows()
+        if not self.query:
+            self.matches = []
+        else:
+            needle = self.query.lower()
+            self.matches = [index for index, row in enumerate(self.rows) if needle in row.text.lower()]
+        self.match_set = set(self.matches)
+        self.selected = min(self.selected, max(len(self.rows) - 1, 0))
+        self.offset = min(self.offset, self.selected)
+
+    def refresh_view(self) -> None:
+        self.update_matches()
+
+    def command_row(self, item: CommandEntry, command_index: int, indent: str = "") -> ListRow:
+        marker = activity_label(item.activity_id)
+        match_marker = " "
+        if self.mode == "tree":
+            text = f"{match_marker}{indent}{item.timestamp} [{marker:5}] {item.pwd} $ {item.command}"
+        else:
+            text = (
+                f"{match_marker}{item.timestamp} [{marker:5}] "
+                f"{item.session}/{item.window_index}:{item.window_name}/{item.pane_id} "
+                f"{item.pwd} $ {item.command}"
+            )
+        return ListRow("command", text, command_index, False)
+
+    def rebuild_rows(self) -> None:
+        if self.mode == "tree":
+            self.rows = self.build_tree_rows()
+        else:
+            self.rows = [self.command_row(item, index) for index, item in enumerate(self.commands)]
+
+    def build_tree_rows(self) -> list[ListRow]:
+        rows: list[ListRow] = []
+        sessions: dict[tuple[str, str], dict[tuple[str, str, str], dict[tuple[str, str], dict[tuple[str, str], list[int]]]]] = {}
+        for index, item in enumerate(self.commands):
+            session_key = (item.session, item.session_id)
+            window_key = (item.window_index, item.window_name, item.window_id)
+            pane_key = (item.pane_index, item.pane_id)
+            bash_key = (item.bash_pid, item.pwd)
+            sessions.setdefault(session_key, {}).setdefault(window_key, {}).setdefault(pane_key, {}).setdefault(
+                bash_key, []
+            ).append(index)
+
+        def latest(indexes: Iterable[int]) -> str:
+            return max(self.commands[index].timestamp for index in indexes)
+
+        def latest_in_bash(group: dict[tuple[str, str], list[int]]) -> str:
+            return max(latest(indexes) for indexes in group.values())
+
+        def latest_in_pane(group: dict[tuple[str, str], dict[tuple[str, str], list[int]]]) -> str:
+            return max(latest_in_bash(bash_group) for bash_group in group.values())
+
+        def latest_in_window(
+            group: dict[tuple[str, str], dict[tuple[str, str], dict[tuple[str, str], list[int]]]]
+        ) -> str:
+            return max(latest_in_pane(pane_group) for pane_group in group.values())
+
+        for (session, session_id), windows in sorted(
+            sessions.items(), key=lambda item: latest_in_window(item[1]), reverse=True
+        ):
+            rows.append(ListRow("header", f"session {session!r} id={session_id}"))
+            for (window_index, window_name, window_id), panes in sorted(
+                windows.items(), key=lambda item: latest_in_pane(item[1]), reverse=True
+            ):
+                rows.append(ListRow("header", f"  window index={window_index} name={window_name!r} id={window_id}"))
+                for (pane_index, pane_id), bash_sessions in sorted(
+                    panes.items(), key=lambda item: latest_in_bash(item[1]), reverse=True
+                ):
+                    rows.append(ListRow("header", f"    pane index={pane_index} id={pane_id}"))
+                    for (bash_pid, pwd), indexes in sorted(
+                        bash_sessions.items(), key=lambda item: latest(item[1]), reverse=True
+                    ):
+                        rows.append(ListRow("header", f"      bash pid={bash_pid} cwd={pwd}"))
+                        for index in sorted(
+                            indexes, key=lambda item_index: self.commands[item_index].timestamp, reverse=True
+                        ):
+                            rows.append(self.command_row(self.commands[index], index, "        "))
+        return rows
+
+    def current(self) -> CommandEntry | None:
+        if not self.rows:
+            return None
+        row = self.rows[self.selected]
+        if row.command_index is None:
+            return None
+        return self.commands[row.command_index]
+
+    def current_recording(self) -> Recording | None:
+        entry = self.current()
+        if not entry or not entry.activity_id:
+            return None
+        return self.recordings.get(entry.activity_id)
+
+    def run(self) -> None:
+        curses.curs_set(0)
+        self.stdscr.keypad(True)
+        while True:
+            self.draw()
+            key = self.stdscr.getch()
+            if key in (ord("q"), 27):
+                return
+            if key in (curses.KEY_DOWN, ord("j")):
+                self.move(1)
+            elif key in (curses.KEY_UP, ord("k")):
+                self.move(-1)
+            elif key in (curses.KEY_NPAGE, ord(" ")):
+                self.move(max(1, self.list_height() - 1))
+            elif key == curses.KEY_PPAGE:
+                self.move(-max(1, self.list_height() - 1))
+            elif key in (curses.KEY_ENTER, 10, 13, ord("o")):
+                self.open_primary()
+            elif key == ord("v"):
+                self.toggle_mode()
+            elif key == ord("m"):
+                self.open_meta()
+            elif key == ord("t"):
+                self.open_transcript()
+            elif key == ord("r"):
+                self.replay_recording()
+            elif key == ord("/"):
+                self.prompt_search()
+            elif key == ord("n"):
+                self.next_match(1)
+            elif key == ord("N"):
+                self.next_match(-1)
+            elif key == ord("c"):
+                self.query = ""
+                self.refresh_view()
+            elif key == ord("R"):
+                self.commands = load_commands()
+                self.recordings = load_recordings()
+                self.refresh_view()
+                self.message = "reloaded logs"
+
+    def list_height(self) -> int:
+        height, _ = self.stdscr.getmaxyx()
+        return max(1, height - 12)
+
+    def move(self, delta: int) -> None:
+        if not self.rows:
+            return
+        self.selected = max(0, min(len(self.rows) - 1, self.selected + delta))
+        height = self.list_height()
+        if self.selected < self.offset:
+            self.offset = self.selected
+        elif self.selected >= self.offset + height:
+            self.offset = self.selected - height + 1
+
+    def selected_command_index(self) -> int | None:
+        if not self.rows:
+            return None
+        return self.rows[self.selected].command_index
+
+    def next_match(self, direction: int) -> None:
+        if not self.matches:
+            self.message = "no search matches"
+            return
+        if direction > 0:
+            later = [index for index in self.matches if index > self.selected]
+            self.selected = later[0] if later else self.matches[0]
+        else:
+            earlier = [index for index in self.matches if index < self.selected]
+            self.selected = earlier[-1] if earlier else self.matches[-1]
+        self.message = f"match {self.matches.index(self.selected) + 1}/{len(self.matches)}"
+        self.ensure_selected_visible()
+
+    def select_command_index(self, command_index: int) -> None:
+        for row_index, row in enumerate(self.rows):
+            if row.command_index == command_index:
+                self.selected = row_index
+                return
+
+    def toggle_mode(self) -> None:
+        current_index = self.selected_command_index()
+        self.mode = "tree" if self.mode == "time" else "time"
+        self.update_matches()
+        if current_index is not None:
+            self.select_command_index(current_index)
+        else:
+            self.selected = min(self.selected, max(len(self.rows) - 1, 0))
+        self.ensure_selected_visible()
+        self.message = f"view mode: {self.mode}"
+
+    def ensure_selected_visible(self) -> None:
+        height = self.list_height()
+        if self.selected < self.offset:
+            self.offset = self.selected
+        elif self.selected >= self.offset + height:
+            self.offset = self.selected - height + 1
+
+    def draw(self) -> None:
+        self.stdscr.erase()
+        height, width = self.stdscr.getmaxyx()
+        match_text = f"{len(self.matches)} matches" if self.query else "no search"
+        header = (
+            f"activity-tui  mode={self.mode}  {len(self.commands)} commands  {match_text}"
+            f"  query={self.query!r}"
+        )
+        self.stdscr.addnstr(0, 0, header, width - 1, curses.A_BOLD)
+        self.stdscr.addnstr(
+            1,
+            0,
+            "j/k move  v view  / search  n/N match  c clear  Enter/o open  m meta  t transcript  r replay  R reload  q quit",
+            width - 1,
+        )
+
+        list_height = self.list_height()
+        for screen_row, idx in enumerate(
+            range(self.offset, min(self.offset + list_height, len(self.rows))),
+            start=3,
+        ):
+            row = self.rows[idx]
+            line = row.text
+            row_match = idx in self.match_set
+            if row_match:
+                line = "*" + line[1:] if line else line
+            attr = curses.A_REVERSE if idx == self.selected else curses.A_NORMAL
+            if row.kind == "header" and idx != self.selected:
+                attr = curses.A_DIM
+            if row_match and idx != self.selected:
+                attr = curses.A_BOLD
+            self.stdscr.addnstr(screen_row, 0, display_width(line, width - 1), width - 1, attr)
+
+        separator_y = min(height - 5, 3 + list_height)
+        if separator_y > 2:
+            self.stdscr.addnstr(separator_y, 0, "-" * max(0, width - 1), width - 1, curses.A_DIM)
+        detail_y = min(height - 4, separator_y + 1)
+        self.draw_detail(detail_y, width, height)
+        self.stdscr.refresh()
+
+    def draw_detail(self, y: int, width: int, height: int) -> None:
+        entry = self.current()
+        if not entry:
+            self.stdscr.addnstr(y, 0, "No command logs found.", width - 1, curses.A_BOLD)
+            return
+        recording = self.current_recording()
+        details = [
+            f"session={entry.session!r} session_id={entry.session_id}",
+            f"window_index={entry.window_index} window_name={entry.window_name!r} window_id={entry.window_id}",
+            f"pane_index={entry.pane_index} pane_id={entry.pane_id} bash_pid={entry.bash_pid}",
+            f"command_time={entry.timestamp}",
+            f"pwd={entry.pwd}",
+            f"command={entry.command}",
+            f"activity_id={entry.activity_id or '(none)'}",
+        ]
+        if recording:
+            details.extend(
+                [
+                    f"recording={recording.kind}",
+                    f"primary={recording.primary_path}",
+                    f"meta={recording.meta_path}",
+                ]
+            )
+            if recording.timing_path:
+                details.append(f"timing={recording.timing_path}")
+        else:
+            details.append("recording=none")
+        if self.message:
+            details.append(f"message: {self.message}")
+
+        for row_offset, line in enumerate(details):
+            if y + row_offset >= height:
+                break
+            attr = curses.A_BOLD if row_offset == 0 else curses.A_NORMAL
+            self.stdscr.addnstr(y + row_offset, 0, display_width(line, width - 1), width - 1, attr)
+
+    def prompt_search(self) -> None:
+        height, width = self.stdscr.getmaxyx()
+        curses.curs_set(1)
+        self.stdscr.addnstr(height - 1, 0, "/" + " " * (width - 2), width - 1)
+        self.stdscr.move(height - 1, 1)
+        curses.echo()
+        try:
+            raw = self.stdscr.getstr(height - 1, 1, width - 2)
+            self.query = raw.decode("utf-8", errors="replace")
+            self.refresh_view()
+            if self.matches:
+                self.selected = self.matches[0]
+                self.ensure_selected_visible()
+                self.message = f"{len(self.matches)} matches"
+            else:
+                self.message = "no matches"
+        finally:
+            curses.noecho()
+            curses.curs_set(0)
+
+    def open_with_editor(self, paths: list[Path]) -> None:
+        existing = [str(path) for path in paths if path and path.exists()]
+        if not existing:
+            self.message = "no file to open"
+            return
+        editor = os.environ.get("EDITOR", "vim")
+        curses.endwin()
+        try:
+            subprocess.run([editor, *existing], check=False)
+        finally:
+            self.stdscr.clear()
+            self.stdscr.refresh()
+
+    def open_primary(self) -> None:
+        recording = self.current_recording()
+        if recording and recording.primary_path:
+            self.open_with_editor([recording.primary_path])
+            return
+        entry = self.current()
+        if entry:
+            self.open_with_editor([entry.source])
+
+    def open_meta(self) -> None:
+        recording = self.current_recording()
+        if recording:
+            self.open_with_editor([recording.meta_path])
+        else:
+            entry = self.current()
+            if entry:
+                self.open_with_editor([entry.source])
+
+    def open_transcript(self) -> None:
+        recording = self.current_recording()
+        if recording and recording.kind == "rterm" and recording.primary_path:
+            self.open_with_editor([recording.primary_path])
+        else:
+            self.message = "selected command has no rterm transcript"
+
+    def replay_recording(self) -> None:
+        recording = self.current_recording()
+        if not recording or recording.kind != "rterm" or not recording.timing_path or not recording.primary_path:
+            self.message = "selected command has no rterm replay"
+            return
+        if not recording.timing_path.exists() or not recording.primary_path.exists():
+            self.message = "rterm replay files missing"
+            return
+        curses.endwin()
+        try:
+            subprocess.run(["scriptreplay", str(recording.timing_path), str(recording.primary_path)], check=False)
+            input("Press Enter to return to activity-tui...")
+        finally:
+            self.stdscr.clear()
+            self.stdscr.refresh()
+
+
+def main() -> int:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        print("activity-tui requires a terminal", file=sys.stderr)
+        return 2
+    curses.wrapper(lambda stdscr: ActivityTui(stdscr).run())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
