@@ -322,6 +322,8 @@ class ActivityTui:
                 self.move(-max(1, self.list_height() - 1))
             elif key in (curses.KEY_ENTER, 10, 13, ord("o")):
                 self.open_primary()
+            elif key == ord("?"):
+                self.show_help()
             elif key == ord("v"):
                 self.toggle_mode()
             elif key == ord("m"):
@@ -417,7 +419,7 @@ class ActivityTui:
         self.stdscr.addnstr(
             1,
             0,
-            "j/k move  v view  / search  :g regex  :f filter  n/N match  c clear  Enter/o open  m meta  t transcript  r replay  q quit",
+            "j/k move  v view  / search  :g regex  :f filter  ? help  n/N match  c clear  Enter/o open  m meta  t transcript  r replay  q quit",
             width - 1,
         )
 
@@ -596,6 +598,48 @@ class ActivityTui:
         finally:
             self.stdscr.clear()
             self.stdscr.refresh()
+
+    def show_help(self) -> None:
+        lines = [
+            "activity-tui help",
+            "",
+            "Search and filter",
+            "  /text              match visible rows by substring",
+            "  /rvim*foo          match visible rows with * wildcard",
+            "  :g regex           regex match visible rows without hiding non-matches",
+            "  :g/regex/          same as :g regex",
+            "  :f regex           regex filter command rows; hides unrelated commands",
+            "  :f/regex/          same as :f regex",
+            "  n / N              jump to next / previous match",
+            "  c                  clear search and filter",
+            "",
+            "Prompt history",
+            "  Up / Down          recall previous / next search or : command",
+            "  Esc                cancel prompt",
+            "",
+            "View and open",
+            "  v                  toggle time/tree list view",
+            "  Enter or o         open primary recording or source command log in $EDITOR",
+            "  m                  open metadata",
+            "  t                  open rterm transcript",
+            "  r                  replay rterm transcript with scriptreplay",
+            "  R                  reload logs",
+            "  q                  quit",
+            "",
+            "Notes",
+            "  Search and :g match only the text currently shown in the list.",
+            "  :f applies to command rows, then tree view is rebuilt from matching commands.",
+            "  Regex syntax is Python regular expression syntax, case-insensitive.",
+            "",
+            "Press any key to return.",
+        ]
+        self.stdscr.erase()
+        height, width = self.stdscr.getmaxyx()
+        for y, line in enumerate(lines[:height]):
+            attr = curses.A_BOLD if y in (0, 2, 12, 16, 25) else curses.A_NORMAL
+            self.stdscr.addnstr(y, 0, display_width(line, width - 1), width - 1, attr)
+        self.stdscr.refresh()
+        self.stdscr.getch()
 
     def open_primary(self) -> None:
         recording = self.current_recording()
