@@ -24,7 +24,12 @@ set rtp+=~/.vim/bundle/vundle/
 call vundle#rc()
 
 " ========== Plugin Setting ==========
-Plugin 'lifepillar/vim-solarized8.git'
+Plugin 'lifepillar/vim-solarized8'
+if empty(globpath(&runtimepath, 'colors/solarized8_flat.vim'))
+  echohl ErrorMsg
+  echom "Missing colorscheme solarized8_flat. Try running: vim -Nu ~/.vimrc -n '+PluginInstall' '+qall'"
+  echohl None
+endif
 colorscheme solarized8_flat
 
 Plugin 'itchyny/lightline.vim'
