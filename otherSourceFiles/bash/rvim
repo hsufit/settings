@@ -3,8 +3,8 @@
 # rvim records a Vim key log for later behavior review.
 # It is opt-in and does not replace the normal vim command.
 
-if [ -n "${BASH_VERSION:-}" ] && [ -z "${RVIM_LOADED:-}" ]; then
-  export RVIM_LOADED=1
+if [ -n "${BASH_VERSION:-}" ] && ! declare -F rvim >/dev/null 2>&1; then
+  RVIM_LOADED=1
 
   __rvim_sanitize() {
     local value="$1"

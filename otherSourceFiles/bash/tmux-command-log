@@ -3,8 +3,8 @@
 # Log interactive Bash commands from tmux panes for later analysis.
 # This is intentionally separate from Bash's normal history files.
 
-if [ -n "${BASH_VERSION:-}" ] && [ -z "${TMUX_COMMAND_LOG_LOADED:-}" ]; then
-  export TMUX_COMMAND_LOG_LOADED=1
+if [ -n "${BASH_VERSION:-}" ] && ! declare -F __tmux_command_log_prompt >/dev/null 2>&1; then
+  TMUX_COMMAND_LOG_LOADED=1
 
   __tmux_command_log_last_histnum=
   __tmux_command_log_started_at="$(date '+%Y%m%d-%H%M%S')"

@@ -3,8 +3,8 @@
 # rterm records a terminal command transcript for later review.
 # Usage: rterm qemu-system-x86_64 -nographic ...
 
-if [ -n "${BASH_VERSION:-}" ] && [ -z "${RTERM_LOADED:-}" ]; then
-  export RTERM_LOADED=1
+if [ -n "${BASH_VERSION:-}" ] && ! declare -F rterm >/dev/null 2>&1; then
+  RTERM_LOADED=1
 
   __rterm_sanitize() {
     local value="$1"
