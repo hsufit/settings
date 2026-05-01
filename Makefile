@@ -48,11 +48,16 @@ tpm: ~/.tmux.conf
 	fi
 
 tpmPlugins: tpm
-	[ -f ~/.tmux.conf ] && tmux source ~/.tmux.conf
 	@echo "Installing tmux plugins..."
 	$(TPM_PATH)/bin/install_plugins
 	@echo "Updating tmux plugins..."
 	$(TPM_PATH)/bin/update_plugins all
+	@if tmux info >/dev/null 2>&1; then \
+		echo "Reloading tmux config..."; \
+		tmux source-file ~/.tmux.conf; \
+	else \
+		echo "No tmux server running; skipping tmux config reload."; \
+	fi
 
 ~/.tmux: tpmPlugins
 
