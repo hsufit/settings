@@ -14,7 +14,7 @@ if [ -n "${BASH_VERSION:-}" ] && [ -z "${RVIM_LOADED:-}" ]; then
 
   rvim() {
     local log_dir started_at host session session_id window_index window_name window_id pane_index pane_id
-    local safe_host safe_session_id safe_window_id safe_pane_id base key_log meta_log
+    local safe_host safe_session_id safe_window_id safe_pane_id activity_id key_log meta_log
 
     log_dir="$HOME/.vim-activity/rvim"
     mkdir -p "$log_dir"
@@ -45,12 +45,15 @@ if [ -n "${BASH_VERSION:-}" ] && [ -z "${RVIM_LOADED:-}" ]; then
     safe_window_id="$(__rvim_sanitize "$window_id")"
     safe_pane_id="$(__rvim_sanitize "$pane_id")"
 
-    base="${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${started_at}"
-    key_log="$log_dir/${base}.keys"
-    meta_log="$log_dir/${base}.meta.tsv"
+    activity_id="${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${started_at}-${RANDOM}"
+    key_log="$log_dir/${activity_id}.keys"
+    meta_log="$log_dir/${activity_id}.meta.tsv"
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    __TMUX_COMMAND_LOG_ACTIVITY_ID="$activity_id"
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$(date '+%F %T')" \
+      "$activity_id" \
       "$host" \
       "$session" \
       "$session_id" \

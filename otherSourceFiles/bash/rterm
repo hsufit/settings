@@ -24,7 +24,7 @@ if [ -n "${BASH_VERSION:-}" ] && [ -z "${RTERM_LOADED:-}" ]; then
     fi
 
     local log_dir started_at host session session_id window_index window_name window_id pane_index pane_id
-    local safe_host safe_session_id safe_window_id safe_pane_id base transcript_log timing_log meta_log quoted_cmd
+    local safe_host safe_session_id safe_window_id safe_pane_id activity_id transcript_log timing_log meta_log quoted_cmd
 
     log_dir="$HOME/.terminal-activity/rterm"
     mkdir -p "$log_dir"
@@ -55,16 +55,19 @@ if [ -n "${BASH_VERSION:-}" ] && [ -z "${RTERM_LOADED:-}" ]; then
     safe_window_id="$(__rterm_sanitize "$window_id")"
     safe_pane_id="$(__rterm_sanitize "$pane_id")"
 
-    base="${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${started_at}"
-    transcript_log="$log_dir/${base}.typescript"
-    timing_log="$log_dir/${base}.timing"
-    meta_log="$log_dir/${base}.meta.tsv"
+    activity_id="${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${started_at}-${RANDOM}"
+    transcript_log="$log_dir/${activity_id}.typescript"
+    timing_log="$log_dir/${activity_id}.timing"
+    meta_log="$log_dir/${activity_id}.meta.tsv"
 
     printf -v quoted_cmd '%q ' "$@"
     quoted_cmd="${quoted_cmd% }"
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    __TMUX_COMMAND_LOG_ACTIVITY_ID="$activity_id"
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$(date '+%F %T')" \
+      "$activity_id" \
       "$host" \
       "$session" \
       "$session_id" \

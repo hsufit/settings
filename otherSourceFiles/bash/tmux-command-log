@@ -28,7 +28,8 @@ if [ -n "${BASH_VERSION:-}" ] && [ -z "${TMUX_COMMAND_LOG_LOADED:-}" ]; then
     command="$(HISTTIMEFORMAT= history 1 | sed 's/^ *[0-9]\+ *//')"
     [ -n "$command" ] || return
 
-    local log_dir session session_id window_index window_name window_id pane_index pane_id safe_host safe_session_id safe_window_id safe_pane_id logfile
+    local activity_id log_dir session session_id window_index window_name window_id pane_index pane_id safe_host safe_session_id safe_window_id safe_pane_id logfile
+    activity_id="${__TMUX_COMMAND_LOG_ACTIVITY_ID:-}"
     log_dir="$HOME/.bash_history.d/tmux-command-log"
     mkdir -p "$log_dir"
 
@@ -47,8 +48,9 @@ if [ -n "${BASH_VERSION:-}" ] && [ -z "${TMUX_COMMAND_LOG_LOADED:-}" ]; then
 
     logfile="$log_dir/${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${__tmux_command_log_started_at}.tsv"
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$(date '+%F %T')" \
+      "$activity_id" \
       "$session" \
       "$session_id" \
       "$window_index" \
@@ -59,6 +61,8 @@ if [ -n "${BASH_VERSION:-}" ] && [ -z "${TMUX_COMMAND_LOG_LOADED:-}" ]; then
       "$$" \
       "$PWD" \
       "$command" >> "$logfile"
+
+    unset __TMUX_COMMAND_LOG_ACTIVITY_ID
   }
 
   if [[ ";${PROMPT_COMMAND:-};" != *";__tmux_command_log_prompt;"* ]]; then
