@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import curses
 import csv
+import fnmatch
 import os
 import subprocess
 import sys
@@ -150,6 +151,14 @@ def activity_label(activity_id: str) -> str:
     return activity_id.rsplit("-", 1)[-1] or activity_id
 
 
+def row_matches_query(text: str, query: str) -> bool:
+    text = text.lower()
+    query = query.lower()
+    if "*" in query:
+        return fnmatch.fnmatchcase(text, f"*{query}*")
+    return query in text
+
+
 class ActivityTui:
     def __init__(self, stdscr: curses.window) -> None:
         self.stdscr = stdscr
@@ -170,8 +179,9 @@ class ActivityTui:
         if not self.query:
             self.matches = []
         else:
-            needle = self.query.lower()
-            self.matches = [index for index, row in enumerate(self.rows) if needle in row.text.lower()]
+            self.matches = [
+                index for index, row in enumerate(self.rows) if row_matches_query(row.text, self.query)
+            ]
         self.match_set = set(self.matches)
         self.selected = min(self.selected, max(len(self.rows) - 1, 0))
         self.offset = min(self.offset, self.selected)
