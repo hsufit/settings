@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+# Log interactive Bash commands from tmux panes for later analysis.
+# This is intentionally separate from Bash's normal history files.
+
+if [ -n "${BASH_VERSION:-}" ] && [ -z "${TMUX_COMMAND_LOG_LOADED:-}" ]; then
+  export TMUX_COMMAND_LOG_LOADED=1
+
+  __tmux_command_log_last_histnum=
+  __tmux_command_log_started_at="$(date '+%Y%m%d-%H%M%S')"
+
+  __tmux_command_log_sanitize() {
+    local value="$1"
+    value="${value//[^A-Za-z0-9._-]/_}"
+    printf '%s' "${value:-unknown}"
+  }
+
+  __tmux_command_log_prompt() {
+    [ -n "${TMUX:-}" ] || return
+    [ -n "${TMUX_PANE:-}" ] || return
+
+    local histnum command
+    histnum="$(HISTTIMEFORMAT= history 1 | awk '{print $1}')"
+    [ -n "$histnum" ] || return
+    [ "$histnum" != "$__tmux_command_log_last_histnum" ] || return
+    __tmux_command_log_last_histnum="$histnum"
+
+    command="$(HISTTIMEFORMAT= history 1 | sed 's/^ *[0-9]\+ *//')"
+    [ -n "$command" ] || return
+
+    local log_dir session session_id window_index window_name window_id pane_index pane_id safe_host safe_session_id safe_window_id safe_pane_id logfile
+    log_dir="$HOME/.bash_history.d/tmux-command-log"
+    mkdir -p "$log_dir"
+
+    session="$(tmux display-message -p '#S' 2>/dev/null)"
+    session_id="$(tmux display-message -p '#{session_id}' 2>/dev/null)"
+    window_index="$(tmux display-message -p '#I' 2>/dev/null)"
+    window_name="$(tmux display-message -p '#W' 2>/dev/null)"
+    window_id="$(tmux display-message -p '#{window_id}' 2>/dev/null)"
+    pane_index="$(tmux display-message -p '#P' 2>/dev/null)"
+    pane_id="$(tmux display-message -p '#D' 2>/dev/null)"
+
+    safe_host="$(__tmux_command_log_sanitize "${HOSTNAME:-$(hostname 2>/dev/null)}")"
+    safe_session_id="$(__tmux_command_log_sanitize "$session_id")"
+    safe_window_id="$(__tmux_command_log_sanitize "$window_id")"
+    safe_pane_id="$(__tmux_command_log_sanitize "$pane_id")"
+
+    logfile="$log_dir/${safe_host}-tmux${safe_session_id}-window${safe_window_id}-pane${safe_pane_id}-bash$$-${__tmux_command_log_started_at}.tsv"
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$(date '+%F %T')" \
+      "$session" \
+      "$session_id" \
+      "$window_index" \
+      "$window_name" \
+      "$window_id" \
+      "$pane_index" \
+      "$pane_id" \
+      "$$" \
+      "$PWD" \
+      "$command" >> "$logfile"
+  }
+
+  if [[ ";${PROMPT_COMMAND:-};" != *";__tmux_command_log_prompt;"* ]]; then
+    PROMPT_COMMAND="__tmux_command_log_prompt${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+  fi
+fi

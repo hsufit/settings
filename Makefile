@@ -5,7 +5,9 @@ USERSETTINGS = vimrc gitconfig inputrc tigrc tmux.conf bash_aliases
 TARGET = $(USERSETTINGS:%=~/.%)
 
 GIT_PROMPT = $(realpath ./otherSourceFiles/git/git-prompt)
+TMUX_COMMAND_LOG = $(realpath ./otherSourceFiles/bash/tmux-command-log)
 MARKER := \#git-prompt_marker
+TMUX_COMMAND_LOG_MARKER := \#tmux-command-log_marker
 BASHRC = ~/.bashrc
 
 TPM_PATH := $(HOME)/.tmux/plugins/tpm
@@ -15,8 +17,9 @@ TPM_PATH := $(HOME)/.tmux/plugins/tpm
 .PHONY: $(TARGET)
 .PHONY: ~/.bashrc cleanbash
 .PHONY: ~/.tmux tpm tpmPlugins
+.PHONY: vimPluginHint
 
-all: $(TARGET) ~/.bashrc ~/.tmux
+all: $(TARGET) ~/.bashrc ~/.tmux vimPluginHint
 
 #$@ means target
 #$< means first prerequest
@@ -29,7 +32,7 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		ln -s $$TMP_PATH $@; \
 	fi
 
-~/.bashrc: $(GIT_PROMPT)
+~/.bashrc: $(GIT_PROMPT) $(TMUX_COMMAND_LOG)
 	@echo "Installing Git prompt..."
 	@if ! grep -q '$(MARKER)' $(BASHRC); then \
 		echo "$(MARKER)" >> $(BASHRC); \
@@ -38,6 +41,18 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 	else \
 		echo "Git prompt already installed."; \
 	fi
+	@echo "Installing tmux command log..."
+	@if ! grep -q '$(TMUX_COMMAND_LOG_MARKER)' $(BASHRC); then \
+		echo "$(TMUX_COMMAND_LOG_MARKER)" >> $(BASHRC); \
+		echo "if [ -f $(TMUX_COMMAND_LOG) ]; then source $(TMUX_COMMAND_LOG); fi" >> $(BASHRC); \
+		echo "tmux command log added to $(BASHRC)"; \
+	else \
+		echo "tmux command log already installed."; \
+	fi
+
+vimPluginHint:
+	@echo "Vim plugins are managed by Vundle."
+	@echo "After make finishes, run: vim -Nu ~/.vimrc -n '+PluginInstall' '+qall'"
 
 tpm: ~/.tmux.conf
 	@if [ ! -d "$(TPM_PATH)" ]; then \
@@ -75,6 +90,9 @@ cleanbash:
 	@echo "Removing Git prompt..."
 	@sed -i "/$(MARKER)/,+1d" $(BASHRC)
 	@echo "Git prompt removed."
+	@echo "Removing tmux command log..."
+	@sed -i "/$(TMUX_COMMAND_LOG_MARKER)/,+1d" $(BASHRC)
+	@echo "tmux command log removed."
 
 cleantmuxPlugin:
 	@echo "Removing tmux plugins..."
