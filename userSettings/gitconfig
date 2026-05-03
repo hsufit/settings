@@ -1,5 +1,10 @@
 [user]
 	email = a167349852@hotmail.com
 	name = Tim.Hsu
+[color]
+	diff = auto
+	status = auto
+	branch = auto
 [core]
 	editor = vim
+	pager = less -FXRS
