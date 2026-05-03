@@ -7,6 +7,8 @@ if [ -n "${BASH_VERSION:-}" ]; then
   set -o notify
   # Keep the default file creation mask predictable.
   umask 022
+  # Avoid storing duplicated consecutive commands in shell history.
+  export HISTCONTROL=ignoredups
 
   # Add color to man/less output in terminals that honor LESS_TERMCAP.
   export LESS_TERMCAP_mb=$'\E[01;31m'
