@@ -85,6 +85,9 @@ set history=100
 " set laststatus=2
 set updatetime=250
 
+" Allow many tab pages, but this does not control how the tabline is rendered.
+set tabpagemax=100
+
 set wrap
 set linebreak
 
