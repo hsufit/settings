@@ -79,6 +79,18 @@ set backspace=indent,eol,start
 
 " Show uncompleted command in the status line
 set showcmd
+set history=100
+
+" Keep a statusline available if needed, though the filename is already shown on the tabline.
+" set laststatus=2
+set updatetime=250
+
+set wrap
+set linebreak
+
+set matchpairs+=<:>
+set mouse=n
+set splitbelow
 
 " Insert mode → vertical bar
 let &t_SI = "\e[6 q"
