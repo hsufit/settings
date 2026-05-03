@@ -8,7 +8,6 @@ alias la='ls -alh --color=auto'
 alias vim='vim -X -p'
 alias vi='vim -X -p'
 alias vimdiff='vimdiff -X'
-alias vimdiff='vimdiff -X'
 
 # Let make process run in higher priority
 alias make="nice make"
