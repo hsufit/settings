@@ -1,5 +1,9 @@
 #!/bin/bash
 
+alias ls='ls --color=auto'
+alias ll='ls -lh --color=auto'
+alias la='ls -alh --color=auto'
+
 # Disable the connection to x-server to reduce computing power usage
 alias vim='vim -X -p'
 alias vi='vim -X -p'
