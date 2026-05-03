@@ -66,6 +66,9 @@ filetype plugin indent on
 " ========== Plugin Setting End ==========
 
 set listchars=tab:>-,trail:-
+" Another way to show hidden characters by highlighting tabs and spaces directly.
+" highlight ShowSpaceChar guifg=Yellow ctermfg=Yellow
+" match ShowSpaceChar /\t\| /
 " Use true color if supported, otherwise fall back to 256 colors
 if exists('+termguicolors') && (has('nvim') || &term =~ 'xterm\|screen\|tmux')
   set termguicolors
