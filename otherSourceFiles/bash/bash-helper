@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+if [ -n "${BASH_VERSION:-}" ] && ! declare -F tmuxat >/dev/null 2>&1; then
+  tmuxat() {
+    local sessions session_lines session_count choice session
+
+    mapfile -t sessions < <(command tmux -2 list-sessions -F '#S' 2>/dev/null)
+    mapfile -t session_lines < <(command tmux -2 list-sessions 2>/dev/null)
+    session_count=${#sessions[@]}
+
+    if [ "$session_count" -eq 0 ]; then
+      command tmux -2 new-session
+      return
+    fi
+
+    if [ "$session_count" -eq 1 ]; then
+      command tmux -2 attach-session -t "${sessions[0]}"
+      return
+    fi
+
+    printf 'Available tmux sessions:\n'
+    local i=1
+    for session in "${session_lines[@]}"; do
+      printf '  %d) %s\n' "$i" "$session"
+      i=$((i + 1))
+    done
+
+    while true; do
+      printf 'Choose a session number to attach: '
+      read -r choice
+      if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "$session_count" ]; then
+        command tmux -2 attach-session -t "${sessions[$((choice - 1))]}"
+        return
+      fi
+      printf 'Invalid choice. Enter a number between 1 and %d.\n' "$session_count"
+    done
+  }
+fi

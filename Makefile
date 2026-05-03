@@ -6,11 +6,13 @@ TARGET = $(USERSETTINGS:%=~/.%)
 
 GIT_PROMPT = $(realpath ./otherSourceFiles/git/git-prompt)
 TMUX_COMMAND_LOG = $(realpath ./otherSourceFiles/bash/tmux-command-log)
+BASH_HELPER = $(realpath ./otherSourceFiles/bash/bash-helper)
 RVIM = $(realpath ./otherSourceFiles/bash/rvim)
 RTERM = $(realpath ./otherSourceFiles/bash/rterm)
 ACTIVITY_TOOLS = $(realpath ./otherSourceFiles/bash/activity-tools)
 MARKER := \#git-prompt_marker
 TMUX_COMMAND_LOG_MARKER := \#tmux-command-log_marker
+BASH_HELPER_MARKER := \#bash-helper_marker
 RVIM_MARKER := \#rvim_marker
 RTERM_MARKER := \#rterm_marker
 ACTIVITY_TOOLS_MARKER := \#activity-tools_marker
@@ -38,7 +40,7 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		ln -s $$TMP_PATH $@; \
 	fi
 
-~/.bashrc: $(GIT_PROMPT) $(TMUX_COMMAND_LOG) $(RVIM) $(RTERM) $(ACTIVITY_TOOLS)
+~/.bashrc: $(GIT_PROMPT) $(TMUX_COMMAND_LOG) $(BASH_HELPER) $(RVIM) $(RTERM) $(ACTIVITY_TOOLS)
 	@echo "Installing Git prompt..."
 	@if ! grep -q '$(MARKER)' $(BASHRC); then \
 		echo "$(MARKER)" >> $(BASHRC); \
@@ -54,6 +56,14 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		echo "tmux command log added to $(BASHRC)"; \
 	else \
 		echo "tmux command log already installed."; \
+	fi
+	@echo "Installing bash helper..."
+	@if ! grep -q '$(BASH_HELPER_MARKER)' $(BASHRC); then \
+		echo "$(BASH_HELPER_MARKER)" >> $(BASHRC); \
+		echo "if [ -f $(BASH_HELPER) ]; then source $(BASH_HELPER); fi" >> $(BASHRC); \
+		echo "bash helper added to $(BASHRC)"; \
+	else \
+		echo "bash helper already installed."; \
 	fi
 	@echo "Installing rvim..."
 	@if ! grep -q '$(RVIM_MARKER)' $(BASHRC); then \
@@ -123,6 +133,9 @@ cleanbash:
 	@echo "Removing tmux command log..."
 	@sed -i "/$(TMUX_COMMAND_LOG_MARKER)/,+1d" $(BASHRC)
 	@echo "tmux command log removed."
+	@echo "Removing bash helper..."
+	@sed -i "/$(BASH_HELPER_MARKER)/,+1d" $(BASHRC)
+	@echo "bash helper removed."
 	@echo "Removing rvim..."
 	@sed -i "/$(RVIM_MARKER)/,+1d" $(BASHRC)
 	@echo "rvim removed."
