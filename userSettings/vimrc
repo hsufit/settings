@@ -53,6 +53,9 @@ let g:lightline = {
         \ },
       \ }
 "Plugin 'airblade/vim-gitgutter'
+" Tagbar is useful for symbol outlines in C/C++/Python/asm, but not for Scala in
+" this setup because the ctags path here does not cover Scala well.
+"Plugin 'majutsushi/tagbar'
 "Plugin 'mbbill/undotree'
 "Plugin 'scrooloose/nerdtree' "nerdtree can somewhat be replaced by :h netrw
 "Plugin 'vim-airline/vim-airline' "can be replaced by customized :h statusline
@@ -120,6 +123,15 @@ set hlsearch
 " Show the sign column when vim-gitgutter is installed and enabled.
 if exists(':GitGutterEnable') == 2 && get(g:, 'gitgutter_enabled', 1)
   set signcolumn=yes
+endif
+" Enable ctags/cscope navigation settings when Tagbar is installed. LSP may still
+" be a better replacement depending on the project language and tooling.
+if exists(':TagbarToggle') == 2
+  set tags+=tags;
+  set cscopetag
+  set csto=0
+  set cscopeverbose
+  set wildignore+=tags
 endif
 set relativenumber
 set number
