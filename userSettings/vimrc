@@ -89,6 +89,9 @@ set wrap
 set linebreak
 
 set matchpairs+=<:>
+if has('clipboard')
+  set clipboard=unnamedplus
+endif
 set mouse=n
 set splitbelow
 
