@@ -7,12 +7,14 @@ TARGET = $(USERSETTINGS:%=~/.%)
 GIT_PROMPT = $(realpath ./otherSourceFiles/git/git-prompt)
 TMUX_COMMAND_LOG = $(realpath ./otherSourceFiles/bash/tmux-command-log)
 BASH_HELPER = $(realpath ./otherSourceFiles/bash/bash-helper)
+BASH_ADDITIONAL_SETTINGS = $(realpath ./otherSourceFiles/bash/bash-additional-settings)
 RVIM = $(realpath ./otherSourceFiles/bash/rvim)
 RTERM = $(realpath ./otherSourceFiles/bash/rterm)
 ACTIVITY_TOOLS = $(realpath ./otherSourceFiles/bash/activity-tools)
 MARKER := \#git-prompt_marker
 TMUX_COMMAND_LOG_MARKER := \#tmux-command-log_marker
 BASH_HELPER_MARKER := \#bash-helper_marker
+BASH_ADDITIONAL_SETTINGS_MARKER := \#bash-additional-settings_marker
 RVIM_MARKER := \#rvim_marker
 RTERM_MARKER := \#rterm_marker
 ACTIVITY_TOOLS_MARKER := \#activity-tools_marker
@@ -40,7 +42,7 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		ln -s $$TMP_PATH $@; \
 	fi
 
-~/.bashrc: $(GIT_PROMPT) $(TMUX_COMMAND_LOG) $(BASH_HELPER) $(RVIM) $(RTERM) $(ACTIVITY_TOOLS)
+~/.bashrc: $(GIT_PROMPT) $(TMUX_COMMAND_LOG) $(BASH_HELPER) $(BASH_ADDITIONAL_SETTINGS) $(RVIM) $(RTERM) $(ACTIVITY_TOOLS)
 	@echo "Installing Git prompt..."
 	@if ! grep -q '$(MARKER)' $(BASHRC); then \
 		echo "$(MARKER)" >> $(BASHRC); \
@@ -64,6 +66,14 @@ $(TARGET): $(addprefix $(USERSETTINGSAVEPATH)/, $(patsubst .%,%, $(notdir $@)))
 		echo "bash helper added to $(BASHRC)"; \
 	else \
 		echo "bash helper already installed."; \
+	fi
+	@echo "Installing bash additional settings..."
+	@if ! grep -q '$(BASH_ADDITIONAL_SETTINGS_MARKER)' $(BASHRC); then \
+		echo "$(BASH_ADDITIONAL_SETTINGS_MARKER)" >> $(BASHRC); \
+		echo "if [ -f $(BASH_ADDITIONAL_SETTINGS) ]; then source $(BASH_ADDITIONAL_SETTINGS); fi" >> $(BASHRC); \
+		echo "bash additional settings added to $(BASHRC)"; \
+	else \
+		echo "bash additional settings already installed."; \
 	fi
 	@echo "Installing rvim..."
 	@if ! grep -q '$(RVIM_MARKER)' $(BASHRC); then \
@@ -136,6 +146,9 @@ cleanbash:
 	@echo "Removing bash helper..."
 	@sed -i "/$(BASH_HELPER_MARKER)/,+1d" $(BASHRC)
 	@echo "bash helper removed."
+	@echo "Removing bash additional settings..."
+	@sed -i "/$(BASH_ADDITIONAL_SETTINGS_MARKER)/,+1d" $(BASHRC)
+	@echo "bash additional settings removed."
 	@echo "Removing rvim..."
 	@sed -i "/$(RVIM_MARKER)/,+1d" $(BASHRC)
 	@echo "rvim removed."
