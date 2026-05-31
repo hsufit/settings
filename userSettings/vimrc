@@ -84,6 +84,63 @@ set guifont=monospace\ 12
 
 set backspace=indent,eol,start
 
+" Default to 4-space indentation, then adapt per file when existing style is clear.
+set tabstop=4
+set softtabstop=4
+set shiftwidth=4
+set expandtab
+set autoindent
+
+function! s:UseDefaultIndent() abort
+  setlocal tabstop=4
+  setlocal softtabstop=4
+  setlocal shiftwidth=4
+  setlocal expandtab
+endfunction
+
+function! s:DetectIndentStyle() abort
+  let l:tabs = 0
+  let l:spaces = []
+
+  for l:num in range(1, min([line('$'), 250]))
+    let l:line = getline(l:num)
+    if l:line =~# '^\t'
+      let l:tabs += 1
+    elseif l:line =~# '^  \+[^ ]'
+      call add(l:spaces, strlen(matchstr(l:line, '^ \+')))
+    endif
+  endfor
+
+  if l:tabs > len(l:spaces)
+    setlocal noexpandtab
+    setlocal tabstop=4
+    setlocal softtabstop=0
+    setlocal shiftwidth=4
+    return
+  endif
+
+  if empty(l:spaces)
+    call s:UseDefaultIndent()
+    return
+  endif
+
+  let l:width = 4
+  if !empty(filter(copy(l:spaces), 'v:val % 2 == 0 && v:val % 4 != 0'))
+    let l:width = 2
+  endif
+
+  execute 'setlocal tabstop=' . l:width
+  execute 'setlocal softtabstop=' . l:width
+  execute 'setlocal shiftwidth=' . l:width
+  setlocal expandtab
+endfunction
+
+augroup user_indent_style
+  autocmd!
+  autocmd BufNewFile * call s:UseDefaultIndent()
+  autocmd BufReadPost,FileType * call s:DetectIndentStyle()
+augroup END
+
 " Show uncompleted command in the status line
 set showcmd
 set history=100
